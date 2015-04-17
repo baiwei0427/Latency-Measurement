@@ -17,8 +17,8 @@
 static int jip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 {
 	ktime_t now=ktime_get();
-	struct tcphdr *tph=tcp_hdr(skb);
-	if(ntohs(tph->source)==5001||ntohs(tph->dest)==5001)
+	struct tcphdr *tcph=tcp_hdr(skb);
+	if(ntohs(tcph->source)==5001||ntohs(tcph->dest)==5001)
 	{
 		printk(KERN_INFO "ip_queue_xmit: %lld\n",now.tv64-skb->tstamp.tv64);
 	}
@@ -34,12 +34,12 @@ static int jip_output(struct sock *sk, struct sk_buff *skb)
 {
 	ktime_t now=ktime_get();
 	struct iphdr *iph=ip_hdr(skb);
-	struct tcphdr *tph=NULL;
+	struct tcphdr *tcph=NULL;
 	
 	if(iph->protocol==IPPROTO_TCP)
 	{
-		tph=tcp_hdr(skb);
-		if(ntohs(tph->source)==5001||ntohs(tph->dest)==5001)
+		tcph=tcp_hdr(skb);
+		if(ntohs(tcph->source)==5001||ntohs(tcph->dest)==5001)
 		{
 			printk(KERN_INFO "ip_output: %lld\n",now.tv64-skb->tstamp.tv64);
 		}
@@ -56,12 +56,12 @@ static int jdev_queue_xmit(struct sk_buff *skb)
 {
 	ktime_t now=ktime_get();
 	struct iphdr *iph=ip_hdr(skb);
-	struct tcphdr *tph=NULL;
+	struct tcphdr *tcph=NULL;
 	
 	if(iph->protocol==IPPROTO_TCP)
 	{
-		tph=tcp_hdr(skb);
-		if(ntohs(tph->source)==5001||ntohs(tph->dest)==5001)
+		tcph=tcp_hdr(skb);
+		if(ntohs(tcph->source)==5001||ntohs(tcph->dest)==5001)
 		{
 			printk(KERN_INFO "dev_queue_xmit: %lld\n",now.tv64-skb->tstamp.tv64);
 		}
