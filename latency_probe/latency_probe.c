@@ -1,12 +1,13 @@
 #include <linux/kernel.h>
 #include <linux/kprobes.h>
 #include <linux/slab.h>
-#include <linux/proc_fs.h>
 #include <linux/module.h>
 #include <linux/ktime.h>
 #include <linux/time.h>
-
+#include <linux/ip.h>
+#include <linux/tcp.h>
 #include <net/ip.h>
+#include <net/tcp.h>
 #include <linux/netdevice.h>
 
 /*
@@ -16,7 +17,11 @@
 static int jip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 {
 	ktime_t now=ktime_get();
-	printk(KERN_INFO "ip_queue_xmit: %lld\n",now.tv64-skb->tstamp.tv64);
+	struct tcphdr *tph=tcp_hdr(skb);
+	if(ntohs(tph->source)==5001||ntohs(tph->dest)==5001)
+	{
+		printk(KERN_INFO "ip_queue_xmit: %lld\n",now.tv64-skb->tstamp.tv64);
+	}
 	jprobe_return();
 	return 0;
 }
@@ -28,7 +33,17 @@ static int jip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl
 static int jip_output(struct sock *sk, struct sk_buff *skb)
 {
 	ktime_t now=ktime_get();
-	printk(KERN_INFO "ip_output: %lld\n",now.tv64-skb->tstamp.tv64);
+	struct iphdr *iph=ip_hdr(skb);
+	struct tcphdr *tph=NULL;
+	
+	if(iph->protocol==IPPROTO_TCP)
+	{
+		tph=tcp_hdr(skb);
+		if(ntohs(tph->source)==5001||ntohs(tph->dest)==5001)
+		{
+			printk(KERN_INFO "ip_output: %lld\n",now.tv64-skb->tstamp.tv64);
+		}
+	}
 	jprobe_return();
 	return 0;
 }
@@ -40,7 +55,17 @@ static int jip_output(struct sock *sk, struct sk_buff *skb)
 static int jdev_queue_xmit(struct sk_buff *skb)
 {
 	ktime_t now=ktime_get();
-	printk(KERN_INFO "dev_queue_xmit: %lld\n",now.tv64-skb->tstamp.tv64);
+	struct iphdr *iph=ip_hdr(skb);
+	struct tcphdr *tph=NULL;
+	
+	if(iph->protocol==IPPROTO_TCP)
+	{
+		tph=tcp_hdr(skb);
+		if(ntohs(tph->source)==5001||ntohs(tph->dest)==5001)
+		{
+			printk(KERN_INFO "dev_queue_xmit: %lld\n",now.tv64-skb->tstamp.tv64);
+		}
+	}
 	jprobe_return();
 	return 0;
 }
@@ -87,7 +112,6 @@ static __init int latencyprobe_init(void)
 	ret = register_jprobe(&latency_probe_ip_output);
 	if(ret)
 	{
-		unregister_jprobe(&latency_probe_ip_queue_xmit);
 		printk(KERN_INFO "Cannot register the hook for ip_output\n");
 		return ret;
 	}
@@ -95,8 +119,6 @@ static __init int latencyprobe_init(void)
 	ret = register_jprobe(&latency_probe_dev_queue_xmit);
 	if(ret)
 	{
-		unregister_jprobe(&latency_probe_ip_queue_xmit);
-		unregister_jprobe(&latency_probe_ip_output);
 		printk(KERN_INFO "Cannot register the hook for dev_queue_xmit\n");
 		return ret;
 	}
