@@ -128,7 +128,8 @@ int latencyprobe_jprobe_init(void)
 		printk(KERN_INFO "Cannot register the hook for dev_queue_xmit\n");
 		return ret;
 	}
-	
+
+#ifdef RX
 	ret = register_jprobe(&latency_probe_ip_rcv);
 	if(ret)
 	{
@@ -149,7 +150,7 @@ int latencyprobe_jprobe_init(void)
 		printk(KERN_INFO "Cannot register the hook for tcp_v4_rcv\n");
 		return ret;
 	}
-	
+#endif
 	return ret;
 }
 
@@ -158,9 +159,11 @@ void latencyprobe_jprobe_exit(void)
 	unregister_jprobe(&latency_probe_ip_queue_xmit);
 	unregister_jprobe(&latency_probe_ip_output);
 	unregister_jprobe(&latency_probe_dev_queue_xmit);
+#ifdef RX
 	unregister_jprobe(&latency_probe_ip_rcv);
 	unregister_jprobe(&latency_probe_ip_local_deliver );
 	unregister_jprobe(&latency_probe_tcp_v4_rcv);
+#endif
 }
 
 #endif

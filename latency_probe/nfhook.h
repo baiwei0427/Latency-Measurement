@@ -13,6 +13,7 @@ static struct nf_hook_ops nfhook_outgoing;
 /* The hook fo incoming packets*/
 static struct nf_hook_ops nfhook_incoming;
 
+
 static unsigned int latencyprobe_hook_func_out(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *))
 {	
 	struct iphdr *iph=NULL;	
@@ -24,7 +25,8 @@ static unsigned int latencyprobe_hook_func_out(unsigned int hooknum, struct sk_b
 	
 	if(iph->protocol==IPPROTO_TCP) 
 	{
-		latencyprobe_tcp_timestamp_outgoing(skb);
+		//latencyprobe_tcp_timestamp_outgoing(skb);
+		latencyprobe_tcp_modify_timestamp(skb,1);
 	}
 	
 	return NF_ACCEPT;
@@ -41,7 +43,8 @@ static unsigned int latencyprobe_hook_func_in(unsigned int hooknum, struct sk_bu
 	
 	if(iph->protocol==IPPROTO_TCP) 
 	{
-		latencyprobe_tcp_timestamp_incoming(skb);
+		//latencyprobe_tcp_timestamp_incoming(skb);
+		latencyprobe_tcp_modify_timestamp(skb,0);
 	}
 	
 	return NF_ACCEPT;
