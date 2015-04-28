@@ -25,8 +25,14 @@ static unsigned int latencyprobe_hook_func_out(unsigned int hooknum, struct sk_b
 	
 	if(iph->protocol==IPPROTO_TCP) 
 	{
-		//latencyprobe_tcp_timestamp_outgoing(skb);
-		latencyprobe_tcp_modify_timestamp(skb,1);
+		struct tcphdr *tcph=tcp_hdr(skb);
+		if(likely(tcph!=NULL))
+		{
+			if(latencyprobe_filter_packet(ntohs(tcph->source),ntohs(tcph->dest)))
+			{
+				latencyprobe_tcp_modify_timestamp(skb,(unsigned int)(ktime_to_ns(ktime_get())>>10));
+			}
+		}
 	}
 	
 	return NF_ACCEPT;
@@ -43,8 +49,14 @@ static unsigned int latencyprobe_hook_func_in(unsigned int hooknum, struct sk_bu
 	
 	if(iph->protocol==IPPROTO_TCP) 
 	{
-		//latencyprobe_tcp_timestamp_incoming(skb);
-		latencyprobe_tcp_modify_timestamp(skb,0);
+		struct tcphdr *tcph=tcp_hdr(skb);
+		if(likely(tcph!=NULL))
+		{
+			if(latencyprobe_filter_packet(ntohs(tcph->source),ntohs(tcph->dest)))
+			{
+				latencyprobe_tcp_modify_timestamp(skb,0);
+			}
+		}
 	}
 	
 	return NF_ACCEPT;
