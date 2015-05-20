@@ -33,6 +33,7 @@
 #include <linux/ktime.h>
 
 #include "network.h"
+#include "log.h"
 
 struct multiq_sched_data {
 	u16 bands;
@@ -120,8 +121,19 @@ static struct sk_buff *multiq_dequeue(struct Qdisc *sch)
 			if (skb) {
 				qdisc_bstats_update(sch, skb);
 				sch->q.qlen--;
-				//For latency measurement
-				latencyprobe_print_timestamp(skb, "TX tc_dequeue\0");
+				
+				/* For latency measurement */
+				s64 t_sample=latencyprobe_timeinterval(skb);
+				latencyprobe_tsum_tc_dequeue+=t_sample;
+				latencyprobe_sample_tc_dequeue++;
+	
+				if(latencyprobe_sample_tc_dequeue>=latencyprobe_tx_sample_thresh)
+				{
+					unsigned long long result=latencyprobe_tsum_tc_dequeue/latencyprobe_sample_tc_dequeue;
+					latencyprobe_tsum_tc_dequeue=0;
+					latencyprobe_sample_tc_dequeue=0;
+					latencyprobe_print_timeinterval("TX  tc dequeue", result); 
+				}
 				return skb;
 			}
 		}
@@ -439,12 +451,14 @@ static struct Qdisc_ops multiq_qdisc_ops __read_mostly = {
 
 int latencyprobe_multiq_init(void)
 {
+	printk(KERN_INFO "Latencyprobe: sch_multiq is installed\n");
 	return register_qdisc(&multiq_qdisc_ops);
 }
 
 void latencyprobe_multiq_exit(void)
 {
 	unregister_qdisc(&multiq_qdisc_ops);
+	printk(KERN_INFO "Latencyprobe: sch_multiq is removed\n");
 }
 
 #endif

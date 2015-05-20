@@ -7,9 +7,14 @@
 #include "jprobe.h"
 /* Netfilter hooks */
 #include "nfhook.h"
+/* params and sysctl */
+#include "params.h"
+
 
 static __init int latencyprobe_init(void)
 {
+	/* Initialize sysctl */
+	latencyprobe_params_init();
 	/* Register jprobe hooks */
 	latencyprobe_jprobe_init();
 	/* Start TC qdisc */
@@ -17,7 +22,7 @@ static __init int latencyprobe_init(void)
 	/* Register netfilter hooks */
 	latencyprobe_nfhook_init();
 	
-	printk(KERN_INFO "Latency probe module starts\n");
+	printk(KERN_INFO "Latencyprobe: the kernel module starts\n");
 	return 0;
 }
 
@@ -29,8 +34,10 @@ static __exit void latencyprobe_exit(void)
 	latencyprobe_multiq_exit();
 	/* Unregister netfilter hooks */
 	latencyprobe_nfhook_exit();
+	/* Remove sysctl */
+	latencyprobe_params_exit();
 	
-	printk(KERN_INFO "Latency probe module stops\n");
+	printk(KERN_INFO "Latencyprobe: the kernel module stops\n");
 }
 
 module_init(latencyprobe_init);

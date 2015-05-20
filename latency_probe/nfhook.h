@@ -7,6 +7,7 @@
 #include <linux/ip.h>
 
 #include "network.h"
+#include "log.h"
 
 /* The hook fo outgoing packets*/
 static struct nf_hook_ops nfhook_outgoing;
@@ -41,6 +42,7 @@ static unsigned int latencyprobe_hook_func_out(unsigned int hooknum, struct sk_b
 static unsigned int latencyprobe_hook_func_in(unsigned int hooknum, struct sk_buff *skb, const struct net_device *in, const struct net_device *out, int (*okfn)(struct sk_buff *))
 {	
 	struct iphdr *iph=NULL;	
+	unsigned int rtt=0;
 	
 	//Get IP header
 	iph=ip_hdr(skb);
@@ -54,7 +56,16 @@ static unsigned int latencyprobe_hook_func_in(unsigned int hooknum, struct sk_bu
 		{
 			if(latencyprobe_filter_packet(ntohs(tcph->source),ntohs(tcph->dest)))
 			{
-				latencyprobe_tcp_modify_timestamp(skb,0);
+				rtt=latencyprobe_tcp_modify_timestamp(skb,0);
+				latencyprobe_tsum_rtt+=rtt*1000;
+				latencyprobe_sample_rtt++;
+				if(latencyprobe_sample_rtt>=latencyprobe_rtt_sample_thresh)
+				{
+					unsigned long long result=latencyprobe_tsum_rtt/latencyprobe_sample_rtt;
+					latencyprobe_tsum_rtt=0;
+					latencyprobe_sample_rtt=0;
+					latencyprobe_print_timeinterval("RTT", result); 
+				}
 			}
 		}
 	}
@@ -62,7 +73,7 @@ static unsigned int latencyprobe_hook_func_in(unsigned int hooknum, struct sk_bu
 	return NF_ACCEPT;
 }
 
-int latencyprobe_nfhook_init(void)
+static int latencyprobe_nfhook_init(void)
 {
 	nfhook_outgoing.hook=latencyprobe_hook_func_out;                
 	nfhook_outgoing.hooknum=NF_INET_LOCAL_OUT;       	
@@ -77,7 +88,7 @@ int latencyprobe_nfhook_init(void)
 	nf_register_hook(&nfhook_incoming);					
 }
 
-void latencyprobe_nfhook_exit(void)
+static void latencyprobe_nfhook_exit(void)
 {
 	nf_unregister_hook(&nfhook_outgoing); 
 	nf_unregister_hook(&nfhook_incoming); 

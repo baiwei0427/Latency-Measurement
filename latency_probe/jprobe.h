@@ -8,15 +8,29 @@
 #include <net/tcp.h>
 
 #include "network.h"
+#include "log.h"
 
 /*
  * Hook inserted to be called before ip_queue_xmit.
- * We use latencyprobe_print_timestamp2 (instead of latencyprobe_print_timestamp) 
- * to print information becanuse ip header is not set up 
+ * We use latencyprobe_timeinterval2 (instead of latencyprobe_timeinterval) because ip header is not set up 
  */
 static int jip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl)
 {
-	latencyprobe_print_timestamp2(skb, "TX ip_queue_xmit\0");
+	s64 t_sample=latencyprobe_timeinterval2(skb);
+	if(t_sample>0)
+	{
+		latencyprobe_tsum_ip_queue_xmit+=t_sample;
+		latencyprobe_sample_ip_queue_xmit++;
+	
+		if(latencyprobe_sample_ip_queue_xmit>=latencyprobe_tx_sample_thresh)
+		{
+			unsigned long long result=latencyprobe_tsum_ip_queue_xmit/latencyprobe_sample_ip_queue_xmit;
+			latencyprobe_tsum_ip_queue_xmit=0;
+			latencyprobe_sample_ip_queue_xmit=0;
+			latencyprobe_print_timeinterval("TX ip_queue_xmit", result); 
+		}
+	}
+	
 	jprobe_return();
 	return 0;
 }
@@ -24,7 +38,21 @@ static int jip_queue_xmit(struct sock *sk, struct sk_buff *skb, struct flowi *fl
 /* Hook inserted to be called before ip_output */
 static int jip_output(struct sock *sk, struct sk_buff *skb)
 {
-	latencyprobe_print_timestamp(skb, "TX ip_output\0");
+	s64 t_sample=latencyprobe_timeinterval(skb);
+	if(t_sample>0)
+	{
+		latencyprobe_tsum_ip_output+=t_sample;
+		latencyprobe_sample_ip_output++;
+	
+		if(latencyprobe_sample_ip_output>=latencyprobe_tx_sample_thresh)
+		{
+			unsigned long long result=latencyprobe_tsum_ip_output/latencyprobe_sample_ip_output;
+			latencyprobe_tsum_ip_output=0;
+			latencyprobe_sample_ip_output=0;
+			latencyprobe_print_timeinterval("TX ip_output", result); 
+		}
+	}
+	
 	jprobe_return();
 	return 0;
 }
@@ -32,7 +60,21 @@ static int jip_output(struct sock *sk, struct sk_buff *skb)
 /* Hook inserted to be called before dev_queue_xmit */
 static int jdev_queue_xmit(struct sk_buff *skb)
 {
-	latencyprobe_print_timestamp(skb, "TX dev_queue_xmit\0");
+	s64 t_sample=latencyprobe_timeinterval(skb);
+	if(t_sample>0)
+	{
+		latencyprobe_tsum_dev_queue_xmit+=t_sample;
+		latencyprobe_sample_dev_queue_xmit++;
+	
+		if(latencyprobe_sample_dev_queue_xmit>=latencyprobe_tx_sample_thresh)
+		{
+			unsigned long long result=latencyprobe_tsum_dev_queue_xmit/latencyprobe_sample_dev_queue_xmit;
+			latencyprobe_tsum_dev_queue_xmit=0;
+			latencyprobe_sample_dev_queue_xmit=0;
+			latencyprobe_print_timeinterval("TX dev_queue_xmit", result); 
+		}
+	}
+	
 	jprobe_return();
 	return 0;
 }
@@ -40,7 +82,21 @@ static int jdev_queue_xmit(struct sk_buff *skb)
 /* Hook inserted to be called before ip_rcv */
 static int jip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_type *pt, struct net_device *orig_dev)
 {
-	latencyprobe_print_timestamp(skb, "RX ip_rcv\0");
+	s64 t_sample=latencyprobe_timeinterval(skb);
+	if(t_sample>0)
+	{
+		latencyprobe_tsum_ip_rcv+=t_sample;
+		latencyprobe_sample_ip_rcv++;
+	
+		if(latencyprobe_sample_ip_rcv>=latencyprobe_rx_sample_thresh)
+		{
+			unsigned long long result=latencyprobe_tsum_ip_rcv/latencyprobe_sample_ip_rcv;
+			latencyprobe_tsum_ip_rcv=0;
+			latencyprobe_sample_ip_rcv=0;
+			latencyprobe_print_timeinterval("RX  ip_rcv", result); 
+		}
+	}
+	
 	jprobe_return();
 	return 0;
 }
@@ -48,7 +104,21 @@ static int jip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 /* Hook inserted to be called before ip_local_deliver */
 static int jip_local_deliver(struct sk_buff *skb)
 {
-	latencyprobe_print_timestamp(skb, "RX ip_local_deliver\0");
+	s64 t_sample=latencyprobe_timeinterval(skb);
+	if(t_sample>0)
+	{
+		latencyprobe_tsum_ip_local_deliver+=t_sample;
+		latencyprobe_sample_ip_local_deliver++;
+	
+		if(latencyprobe_sample_ip_local_deliver>=latencyprobe_rx_sample_thresh)
+		{
+			unsigned long long result=latencyprobe_tsum_ip_local_deliver/latencyprobe_sample_ip_local_deliver;
+			latencyprobe_tsum_ip_local_deliver=0;
+			latencyprobe_sample_ip_local_deliver=0;
+			latencyprobe_print_timeinterval("RX  ip_local_deliver", result); 
+		}
+	}
+	
 	jprobe_return();
 	return 0;
 }
@@ -56,7 +126,21 @@ static int jip_local_deliver(struct sk_buff *skb)
 /* Hook inserted to be called before tcp_v4_rcv */
 static int jtcp_v4_rcv(struct sk_buff *skb)
 {
-	latencyprobe_print_timestamp(skb, "RX tcp_v4_rcv\0");
+	s64 t_sample=latencyprobe_timeinterval(skb);
+	if(t_sample>0)
+	{
+		latencyprobe_tsum_tcp_v4_rcv+=t_sample;
+		latencyprobe_sample_tcp_v4_rcv++;
+	
+		if(latencyprobe_sample_tcp_v4_rcv>=latencyprobe_rx_sample_thresh)
+		{
+			unsigned long long result=latencyprobe_tsum_tcp_v4_rcv/latencyprobe_sample_tcp_v4_rcv;
+			latencyprobe_tsum_tcp_v4_rcv=0;
+			latencyprobe_sample_tcp_v4_rcv=0;
+			latencyprobe_print_timeinterval("RX  tcp_v4_rcv", result); 
+		}
+	}
+	
 	jprobe_return();
 	return 0;
 }
@@ -97,7 +181,7 @@ static struct jprobe  latency_probe_tcp_v4_rcv =
 	.entry = jtcp_v4_rcv,
 };
 
-int latencyprobe_jprobe_init(void)
+static int latencyprobe_jprobe_init(void)
 {
 	int ret = -ENOMEM;
 	
@@ -154,7 +238,7 @@ int latencyprobe_jprobe_init(void)
 	return ret;
 }
 
-void latencyprobe_jprobe_exit(void)
+static void latencyprobe_jprobe_exit(void)
 {
 	unregister_jprobe(&latency_probe_ip_queue_xmit);
 	unregister_jprobe(&latency_probe_ip_output);

@@ -6,41 +6,41 @@
 #include <linux/tcp.h>
 #include <linux/ktime.h>
 
-/* return microsecond-granularity timestamp value */
-static unsigned int get_tsval(void)
-{	
-	return (unsigned int)(ktime_to_ns(ktime_get())>>10);
-}
+#include "params.h"
+
 
 /* Function to filter TCP packets based on port */
-inline int latencyprobe_filter_packet(unsigned short int src_port, unsigned short int dst_port)
+static inline int latencyprobe_filter_packet(unsigned short int src_port, unsigned short int dst_port)
 {
-	return (src_port==5001)||(dst_port==5001);
+	return (src_port==latencyprobe_port)||(dst_port==latencyprobe_port);
 }
 
-/* print timestamp information for TCP packets whose IP header may not be set*/
-void latencyprobe_print_timestamp2(struct sk_buff *skb, char *str)
+/* Calculate time interval for TCP packets whose IP headers may not be set*/
+static s64 latencyprobe_timeinterval2(struct sk_buff *skb)
 {
 	struct tcphdr *tcph=tcp_hdr(skb);
+	
 	if(likely(tcph!=NULL))
 	{
 		if(latencyprobe_filter_packet(ntohs(tcph->source),ntohs(tcph->dest)))
 		{
 			ktime_t now=ktime_get();
-			printk(KERN_INFO "TX ip_queue_xmit: %lld\n",now.tv64-skb->tstamp.tv64);
+			return now.tv64-skb->tstamp.tv64;
 		}
 	}
+	
+	return 0;
 }
 
-/* print timestamp information for TCP packets*/
-void latencyprobe_print_timestamp(struct sk_buff *skb, char *str)
+/* Calculate time interval for TCP packets whose IP headers have been set */
+static s64 latencyprobe_timeinterval(struct sk_buff *skb)
 {
 	struct iphdr *iph=ip_hdr(skb);
 	struct tcphdr *tcph=NULL;
 	ktime_t now;
 	
 	if(unlikely(iph==NULL))
-		return;
+		return 0;
 	
 	/*We only handle tcp packets with source/destination port=5001 */
 	if(likely(iph->protocol==IPPROTO_TCP))
@@ -50,26 +50,36 @@ void latencyprobe_print_timestamp(struct sk_buff *skb, char *str)
 		if(latencyprobe_filter_packet(ntohs(tcph->source),ntohs(tcph->dest)))
 		{
 			now=ktime_get();
-			printk(KERN_INFO "%s: %lld\n",str, now.tv64-skb->tstamp.tv64);
+			return now.tv64-skb->tstamp.tv64;
 		}
 	}
+	
+	return 0;
 }
 
-//Modify TCP packets' Timestamp option and get sample RTT value
-//If time>0: modify outgoing TCP packets' Timestamp value
-//Else: modify incoming TCP pakcets' Timestamp echo reply and return RTT
-unsigned int latencyprobe_tcp_modify_timestamp(struct sk_buff *skb, unsigned int time)
+/* return microsecond-granularity timestamp value */
+static inline unsigned int get_tsval(void)
+{	
+	return (unsigned int)(ktime_to_ns(ktime_get())>>10);
+}
+
+/* 
+ * Modify TCP packets' Timestamp option and get sample RTT value
+ * If time>0: modify outgoing TCP packets' Timestamp value
+ * Else: modify incoming TCP pakcets' Timestamp echo reply and return RTT
+ */
+static unsigned int latencyprobe_tcp_modify_timestamp(struct sk_buff *skb, unsigned int time)
 {
-	struct iphdr *ip_header=NULL;         //IP  header structure
-	struct tcphdr *tcp_header=NULL;       //TCP header structure
-	unsigned int tcp_header_len=0;		  //TCP header length
-	unsigned char *tcp_opt=NULL;		  //TCP option pointer
-	unsigned int *tsecr=NULL;			  //TCP Timestamp echo reply pointer
-	unsigned int *tsval=NULL;			  //TCP Timestamp value pointer
-	int tcplen=0;						  //Length of TCP
-	unsigned char tcp_opt_value=0;		  //TCP option pointer value
-	unsigned int rtt=0;				 	  //Sample RTT
-	unsigned int option_len=0;			  //TCP option length
+	struct iphdr *iph=NULL;	//IP  header structure
+	struct tcphdr *tcph=NULL;	//TCP header structure
+	unsigned int tcph_len=0;	//TCP header length
+	unsigned char *tcp_opt=NULL;	//TCP option pointer
+	unsigned int *tsecr=NULL;	//TCP Timestamp echo reply pointer
+	unsigned int *tsval=NULL;	//TCP Timestamp value pointer
+	int tcplen=0;	//Length of TCP
+	unsigned char tcp_opt_value=0;	//TCP option pointer value
+	unsigned int rtt=0;	//Sample RTT
+	unsigned int option_len=0;	//TCP option length
 	
 	//If we can not modify this packet, return 0
 	if (skb_linearize(skb)!= 0) 
@@ -78,25 +88,25 @@ unsigned int latencyprobe_tcp_modify_timestamp(struct sk_buff *skb, unsigned int
 	}
 	
 	//Get IP header
-	ip_header=(struct iphdr *)skb_network_header(skb);
+	iph=(struct iphdr *)skb_network_header(skb);
 	//Get TCP header on the base of IP header
-	tcp_header = (struct tcphdr *)((__u32 *)ip_header+ ip_header->ihl);
+	tcph = (struct tcphdr *)((__u32 *)iph+ iph->ihl);
 	//Get TCP header length
-	tcp_header_len=(unsigned int)(tcp_header->doff*4);
+	tcph_len=(unsigned int)(tcph->doff*4);
 	
 	//Minimum TCP header length=20(Raw TCP header)+10(TCP Timestamp option)
-	if(tcp_header_len<30)
+	if(unlikely(tcph_len<30))
 	{
 		return 0;
 	}
 	
 	//TCP option offset=IP header pointer+IP header length+TCP header length
-	tcp_opt=(unsigned char*)ip_header+ ip_header->ihl*4+20;
+	tcp_opt=(unsigned char*)iph+ iph->ihl*4+20;
 	
 	while(1)
 	{
 		//If pointer has moved out off the range of TCP option, stop current loop
-		if(tcp_opt-(unsigned char*)tcp_header>=tcp_header_len)
+		if(tcp_opt-(unsigned char*)tcph>=tcph_len)
 		{
 			break;
 		}
@@ -124,7 +134,7 @@ unsigned int latencyprobe_tcp_modify_timestamp(struct sk_buff *skb, unsigned int
 				tsecr=(unsigned int*)(tcp_opt+6);
 				//Get one RTT sample
 				rtt=get_tsval()-ntohl(*tsecr);
-				printk(KERN_INFO "RTT: %u\n",rtt);
+				//printk(KERN_INFO "RTT: %u\n",rtt);
 				//Modify TCP TSecr back to jiffies
 				//Don't disturb TCP. Wrong TCP timestamp echo reply may reset TCP connections
 				*tsecr=htonl(jiffies);
@@ -145,13 +155,9 @@ unsigned int latencyprobe_tcp_modify_timestamp(struct sk_buff *skb, unsigned int
 	}
 	
 	//TCP length=Total length - IP header length
-	tcplen=skb->len-(ip_header->ihl<<2);
-	tcp_header->check=0;
-			
-	tcp_header->check = csum_tcpudp_magic(ip_header->saddr, ip_header->daddr,
-                                  tcplen, ip_header->protocol,
-                                  csum_partial((char *)tcp_header, tcplen, 0));
-								  
+	tcplen=skb->len-(iph->ihl<<2);
+	tcph->check=0;
+	tcph->check = csum_tcpudp_magic(iph->saddr, iph->daddr,tcplen, iph->protocol,csum_partial((char *)tcph, tcplen, 0));
 	skb->ip_summed = CHECKSUM_UNNECESSARY;
 	return rtt;
 } 
