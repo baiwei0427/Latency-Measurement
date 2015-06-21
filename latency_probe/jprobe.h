@@ -145,6 +145,32 @@ static int jtcp_v4_rcv(struct sk_buff *skb)
 	return 0;
 }
 
+/*
+ * Hook inserted to be called before each receive packet.
+ */
+static void jtcp_rcv_established(struct sock *sk, struct sk_buff *skb,
+				 const struct tcphdr *th, unsigned int len)
+{
+	const struct tcp_sock *tp = tcp_sk(sk);
+	const struct inet_sock *inet = inet_sk(sk);
+	
+	if(latencyprobe_filter_packet(ntohs(inet->inet_dport),ntohs(inet->inet_sport)))
+	{
+		latencyprobe_tsum_rtt+=(tp->srtt_us>>3)*1000;	//us to ms
+		latencyprobe_sample_rtt++;
+		if(latencyprobe_sample_rtt>=latencyprobe_rtt_sample_thresh)
+		{
+			unsigned long long result=latencyprobe_tsum_rtt/latencyprobe_sample_rtt;
+			latencyprobe_tsum_rtt=0;
+			latencyprobe_sample_rtt=0;
+			latencyprobe_print_timeinterval("RTT", result); 
+		}
+	}
+	
+	jprobe_return();
+}
+ 
+ 
 static struct jprobe latency_probe_ip_queue_xmit = 
 {
 	.kp = { .symbol_name = "ip_queue_xmit",},
@@ -181,6 +207,12 @@ static struct jprobe  latency_probe_tcp_v4_rcv =
 	.entry = jtcp_v4_rcv,
 };
 
+static struct jprobe latency_probe_tcp_rcv_established = 
+{
+	.kp = { .symbol_name = "tcp_rcv_established",},
+	.entry = jtcp_rcv_established,
+};
+
 static int latencyprobe_jprobe_init(void)
 {
 	int ret = -ENOMEM;
@@ -191,6 +223,7 @@ static int latencyprobe_jprobe_init(void)
 	BUILD_BUG_ON(__same_type(ip_rcv,jip_rcv) == 0);
 	BUILD_BUG_ON(__same_type(ip_local_deliver ,jip_local_deliver ) == 0);
 	BUILD_BUG_ON(__same_type(tcp_v4_rcv,jtcp_v4_rcv) == 0);
+	BUILD_BUG_ON(__same_type(tcp_rcv_established,jtcp_rcv_established) == 0);
 	
 	ret = register_jprobe(&latency_probe_ip_queue_xmit);
 	if(ret)
@@ -213,6 +246,13 @@ static int latencyprobe_jprobe_init(void)
 		return ret;
 	}
 
+	ret = register_jprobe(&latency_probe_tcp_rcv_established);
+	if(ret)
+	{
+		printk(KERN_INFO "Cannot register the hook for tcp_rcv_established\n");
+		return ret;
+	}
+	
 #ifdef RX
 	ret = register_jprobe(&latency_probe_ip_rcv);
 	if(ret)
@@ -243,6 +283,8 @@ static void latencyprobe_jprobe_exit(void)
 	unregister_jprobe(&latency_probe_ip_queue_xmit);
 	unregister_jprobe(&latency_probe_ip_output);
 	unregister_jprobe(&latency_probe_dev_queue_xmit);
+	unregister_jprobe(&latency_probe_tcp_rcv_established);
+	
 #ifdef RX
 	unregister_jprobe(&latency_probe_ip_rcv);
 	unregister_jprobe(&latency_probe_ip_local_deliver );

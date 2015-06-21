@@ -5,8 +5,6 @@
 #include "sch_multiq.h"
 /* jprobe hooks */
 #include "jprobe.h"
-/* Netfilter hooks */
-#include "nfhook.h"
 /* params and sysctl */
 #include "params.h"
 
@@ -19,8 +17,6 @@ static __init int latencyprobe_init(void)
 	latencyprobe_jprobe_init();
 	/* Start TC qdisc */
 	latencyprobe_multiq_init();
-	/* Register netfilter hooks */
-	latencyprobe_nfhook_init();
 	
 	printk(KERN_INFO "Latencyprobe: the kernel module starts\n");
 	return 0;
@@ -32,8 +28,6 @@ static __exit void latencyprobe_exit(void)
 	latencyprobe_jprobe_exit();
 	/* Uninstall TC qdisc */
 	latencyprobe_multiq_exit();
-	/* Unregister netfilter hooks */
-	latencyprobe_nfhook_exit();
 	/* Remove sysctl */
 	latencyprobe_params_exit();
 	

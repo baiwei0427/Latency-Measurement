@@ -53,13 +53,13 @@ struct latencyprobe_param {
 /* The following four parameters that can be configured through sysctl */
 static struct latencyprobe_param latencyprobe_params[5]={
 	{"port\0", &latencyprobe_port},
-	{"tx_sample_thresh\0", &latencyprobe_tx_sample_thresh},
+	{"tx_sample\0", &latencyprobe_tx_sample_thresh},
 	{"rx_sample\0", &latencyprobe_rx_sample_thresh},
 	{"rtt_sample\0", &latencyprobe_rtt_sample_thresh},
 	{"\0", NULL},
 };
 
-static struct ctl_table latencyprobe_params_table[4];
+static struct ctl_table latencyprobe_params_table[5];
 
 static struct ctl_path latencyprobe_params_path[] = {
 	{ .procname = "latencyprobe" },
@@ -91,19 +91,19 @@ static int latencyprobe_params_init(void)
 	latencyprobe_sample_rtt=0;
 
 	latencyprobe_port=5001;
-	latencyprobe_tx_sample_thresh=50;
-	latencyprobe_rx_sample_thresh=500;
-	latencyprobe_rtt_sample_thresh=500;
+	latencyprobe_tx_sample_thresh=100;
+	latencyprobe_rx_sample_thresh=200;
+	latencyprobe_rtt_sample_thresh=200;
 
 	memset(latencyprobe_params_table, 0, sizeof(latencyprobe_params_table));
 	
 	for(i = 0; i < 5; i++) 
 	{
-		struct ctl_table *entry = &latencyprobe_params_table[i];
 		//End
 		if(latencyprobe_params[i].ptr == NULL)
 			break;
 		//Initialize entry (ctl_table)
+		struct ctl_table *entry = &latencyprobe_params_table[i];
 		entry->procname=latencyprobe_params[i].name;
 		entry->data=latencyprobe_params[i].ptr;
 		entry->mode=0644;
@@ -116,6 +116,7 @@ static int latencyprobe_params_init(void)
 		return -1;
 	else	
 		return 0;
+	return 0;
 }
 
 static void latencyprobe_params_exit(void)

@@ -124,15 +124,18 @@ static struct sk_buff *multiq_dequeue(struct Qdisc *sch)
 				
 				/* For latency measurement */
 				s64 t_sample=latencyprobe_timeinterval(skb);
-				latencyprobe_tsum_tc_dequeue+=t_sample;
-				latencyprobe_sample_tc_dequeue++;
-	
-				if(latencyprobe_sample_tc_dequeue>=latencyprobe_tx_sample_thresh)
+				if(t_sample>0)
 				{
-					unsigned long long result=latencyprobe_tsum_tc_dequeue/latencyprobe_sample_tc_dequeue;
-					latencyprobe_tsum_tc_dequeue=0;
-					latencyprobe_sample_tc_dequeue=0;
-					latencyprobe_print_timeinterval("TX  tc dequeue", result); 
+					latencyprobe_tsum_tc_dequeue+=t_sample;
+					latencyprobe_sample_tc_dequeue++;
+	
+					if(latencyprobe_sample_tc_dequeue>=latencyprobe_tx_sample_thresh)
+					{
+						unsigned long long result=latencyprobe_tsum_tc_dequeue/latencyprobe_sample_tc_dequeue;
+						latencyprobe_tsum_tc_dequeue=0;
+						latencyprobe_sample_tc_dequeue=0;
+						latencyprobe_print_timeinterval("TX tc dequeue", result); 
+					}
 				}
 				return skb;
 			}
