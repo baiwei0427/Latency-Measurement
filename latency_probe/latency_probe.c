@@ -8,6 +8,7 @@
 /* params and sysctl */
 #include "params.h"
 
+module_param_call(operation, latencyprobe_set_operation, latencyprobe_noget, NULL, S_IWUSR); //Write permission by owner
 
 static __init int latencyprobe_init(void)
 {

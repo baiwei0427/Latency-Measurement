@@ -1,6 +1,8 @@
 #ifndef __PARAMS_H__
 #define __PARAMS_H__
 
+#include "log.h"
+
 /* Sum of ip_queue_xmit time interval samples */
 static unsigned long long latencyprobe_tsum_ip_queue_xmit;
 /* Sum of ip_output time interval samples */
@@ -90,10 +92,10 @@ static int latencyprobe_params_init(void)
 	latencyprobe_tsum_rtt=0;
 	latencyprobe_sample_rtt=0;
 
-	latencyprobe_port=5001;
-	latencyprobe_tx_sample_thresh=100;
-	latencyprobe_rx_sample_thresh=200;
-	latencyprobe_rtt_sample_thresh=200;
+	latencyprobe_port=80;
+	latencyprobe_tx_sample_thresh=1000;
+	latencyprobe_rx_sample_thresh=1000;
+	latencyprobe_rtt_sample_thresh=1000;
 
 	memset(latencyprobe_params_table, 0, sizeof(latencyprobe_params_table));
 	
@@ -123,6 +125,77 @@ static void latencyprobe_params_exit(void)
 {
 	if(latencyprobe_sysctl!=NULL)
 		unregister_sysctl_table(latencyprobe_sysctl);
+}
+
+/*
+ * The following two functions are related to 'operation'
+ * To clear flow table: echo -n clear > /sys/module/latency_probe/parameters/operation
+ * To print flow table: echo -n print > /sys/module/latency_probe/parameters/operation
+ */
+static int latencyprobe_set_operation(const char *val, struct kernel_param *kp)
+{
+	/* Clear statistic data */
+	if(strncmp(val,"clear\0",5)==0)
+	{
+		latencyprobe_tsum_ip_queue_xmit=0;
+		latencyprobe_tsum_ip_output=0;
+		latencyprobe_tsum_dev_queue_xmit=0;
+		latencyprobe_tsum_tc_dequeue=0;
+		latencyprobe_tsum_ip_rcv=0;
+		latencyprobe_tsum_ip_local_deliver=0;
+		latencyprobe_tsum_tcp_v4_rcv=0;
+
+		latencyprobe_sample_ip_queue_xmit=0;
+		latencyprobe_sample_ip_output=0;
+		latencyprobe_sample_dev_queue_xmit=0;
+		latencyprobe_sample_tc_dequeue=0;
+		latencyprobe_sample_ip_rcv=0;
+		latencyprobe_sample_ip_local_deliver=0;
+		latencyprobe_sample_tcp_v4_rcv=0;
+
+		latencyprobe_tsum_rtt=0;
+		latencyprobe_sample_rtt=0;
+		printk(KERN_INFO "Latencyprobe: clear statistic data\n");
+	}
+	/* Print statistic data */
+	else if(strncmp(val,"print\0",5)==0)
+	{
+		printk(KERN_INFO "Latencyprobe: print statistic data\n");
+		
+		if(latencyprobe_sample_ip_queue_xmit>0)
+			latencyprobe_print_timeinterval("TX ip_queue_xmit", latencyprobe_tsum_ip_queue_xmit/latencyprobe_sample_ip_queue_xmit); 
+		
+		if(latencyprobe_sample_ip_output>0)
+			latencyprobe_print_timeinterval("TX ip_output", latencyprobe_tsum_ip_output/latencyprobe_sample_ip_output); 
+		
+		if(latencyprobe_sample_dev_queue_xmit>0)
+			latencyprobe_print_timeinterval("TX dev_queue_xmit", latencyprobe_tsum_dev_queue_xmit/latencyprobe_sample_dev_queue_xmit); 
+		
+		if(latencyprobe_sample_tc_dequeue>0)
+			latencyprobe_print_timeinterval("TX tc_dequeue", latencyprobe_tsum_tc_dequeue/latencyprobe_sample_tc_dequeue); 
+		
+		if(latencyprobe_sample_ip_rcv>0)
+			latencyprobe_print_timeinterval("RX ip_rcv", latencyprobe_tsum_ip_rcv/latencyprobe_sample_ip_rcv); 
+		
+		if(latencyprobe_sample_ip_local_deliver>0)
+			latencyprobe_print_timeinterval("RX ip_local_deliver", latencyprobe_tsum_ip_local_deliver/latencyprobe_sample_ip_local_deliver); 
+		
+		if(latencyprobe_sample_tcp_v4_rcv>0)
+			latencyprobe_print_timeinterval("RX tcp_v4_rcv", latencyprobe_tsum_tcp_v4_rcv/latencyprobe_sample_tcp_v4_rcv); 
+		
+		if(latencyprobe_sample_rtt>0)
+			latencyprobe_print_timeinterval("RTT", latencyprobe_tsum_rtt/latencyprobe_sample_rtt); 
+	}
+	else
+	{
+		printk(KERN_INFO "Latencyprobe: unrecognized operation\n");
+	}
+	return 0;
+}
+
+static int latencyprobe_noget(const char *val, struct kernel_param *kp)
+{
+	return 0;
 }
 
 #endif
