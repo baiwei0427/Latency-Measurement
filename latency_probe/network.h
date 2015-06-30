@@ -19,16 +19,22 @@ static inline int latencyprobe_filter_packet(unsigned short int src_port, unsign
 static s64 latencyprobe_timeinterval2(struct sk_buff *skb)
 {
 	struct tcphdr *tcph=tcp_hdr(skb);
+	ktime_t now;
+	s64 result=0;
 	
 	if(likely(tcph!=NULL))
 	{
 		if(latencyprobe_filter_packet(ntohs(tcph->source),ntohs(tcph->dest)))
 		{
-			ktime_t now=ktime_get_real();
+			now=ktime_get_real();
 			if(skb->tstamp.tv64>0)
-				return now.tv64-skb->tstamp.tv64;
-			else
-				return 0;
+			{
+				result=now.tv64-skb->tstamp.tv64;
+				if(likely(result<latencyprobe_max_value))
+					return result;
+				else
+					return 0;
+			}
 		}
 	}
 	
@@ -40,6 +46,7 @@ static s64 latencyprobe_timeinterval(struct sk_buff *skb)
 {
 	struct iphdr *iph=ip_hdr(skb);
 	struct tcphdr *tcph=NULL;
+	s64 result=0;
 	ktime_t now;
 	
 	if(unlikely(iph==NULL))
@@ -54,9 +61,13 @@ static s64 latencyprobe_timeinterval(struct sk_buff *skb)
 		{
 			now=ktime_get_real();
 			if(skb->tstamp.tv64>0)
-				return now.tv64-skb->tstamp.tv64;
-			else
-				return 0;
+			{
+				result=now.tv64-skb->tstamp.tv64;
+				if(likely(result<latencyprobe_max_value))
+					return result;
+				else
+					return 0;
+			}
 		}
 	}
 	

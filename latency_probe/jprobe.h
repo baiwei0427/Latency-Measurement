@@ -93,7 +93,7 @@ static int jip_rcv(struct sk_buff *skb, struct net_device *dev, struct packet_ty
 			unsigned long long result=latencyprobe_tsum_ip_rcv/latencyprobe_sample_ip_rcv;
 			latencyprobe_tsum_ip_rcv=0;
 			latencyprobe_sample_ip_rcv=0;
-			latencyprobe_print_timeinterval("RX  ip_rcv", result); 
+			latencyprobe_print_timeinterval("RX ip_rcv", result); 
 		}
 	}
 	
@@ -115,7 +115,7 @@ static int jip_local_deliver(struct sk_buff *skb)
 			unsigned long long result=latencyprobe_tsum_ip_local_deliver/latencyprobe_sample_ip_local_deliver;
 			latencyprobe_tsum_ip_local_deliver=0;
 			latencyprobe_sample_ip_local_deliver=0;
-			latencyprobe_print_timeinterval("RX  ip_local_deliver", result); 
+			latencyprobe_print_timeinterval("RX ip_local_deliver", result); 
 		}
 	}
 	
@@ -137,7 +137,7 @@ static int jtcp_v4_rcv(struct sk_buff *skb)
 			unsigned long long result=latencyprobe_tsum_tcp_v4_rcv/latencyprobe_sample_tcp_v4_rcv;
 			latencyprobe_tsum_tcp_v4_rcv=0;
 			latencyprobe_sample_tcp_v4_rcv=0;
-			latencyprobe_print_timeinterval("RX  tcp_v4_rcv", result); 
+			latencyprobe_print_timeinterval("RX tcp_v4_rcv", result); 
 		}
 	}
 	

@@ -3,6 +3,8 @@
 
 #include "log.h"
 
+static s64 latencyprobe_max_value;
+
 /* Sum of ip_queue_xmit time interval samples */
 static unsigned long long latencyprobe_tsum_ip_queue_xmit;
 /* Sum of ip_output time interval samples */
@@ -67,11 +69,14 @@ static struct ctl_path latencyprobe_params_path[] = {
 	{ .procname = "latencyprobe" },
 	{ },
 };
+
 struct ctl_table_header *latencyprobe_sysctl=NULL;
 
 static int latencyprobe_params_init(void)
 {
 	int i=0;
+	
+	latencyprobe_max_value=LLONG_MAX/10000;
 	
 	latencyprobe_tsum_ip_queue_xmit=0;
 	latencyprobe_tsum_ip_output=0;
@@ -93,9 +98,9 @@ static int latencyprobe_params_init(void)
 	latencyprobe_sample_rtt=0;
 
 	latencyprobe_port=80;
-	latencyprobe_tx_sample_thresh=1000;
-	latencyprobe_rx_sample_thresh=1000;
-	latencyprobe_rtt_sample_thresh=1000;
+	latencyprobe_tx_sample_thresh=10000;
+	latencyprobe_rx_sample_thresh=10000;
+	latencyprobe_rtt_sample_thresh=10000;
 
 	memset(latencyprobe_params_table, 0, sizeof(latencyprobe_params_table));
 	
