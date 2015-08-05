@@ -18,7 +18,7 @@ static __init int latencyprobe_init(void)
 	latencyprobe_jprobe_init();
 	/* Start TC qdisc */
 	latencyprobe_multiq_init();
-	
+
 	printk(KERN_INFO "Latencyprobe: the kernel module starts\n");
 	return 0;
 }
@@ -31,7 +31,7 @@ static __exit void latencyprobe_exit(void)
 	latencyprobe_multiq_exit();
 	/* Remove sysctl */
 	latencyprobe_params_exit();
-	
+
 	printk(KERN_INFO "Latencyprobe: the kernel module stops\n");
 }
 

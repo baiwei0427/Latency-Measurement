@@ -8,11 +8,23 @@
 
 #include "params.h"
 
-
 /* Function to filter TCP packets based on port */
 static inline int latencyprobe_filter_packet(unsigned short int src_port, unsigned short int dst_port)
 {
-	return (src_port==latencyprobe_port)||(dst_port==latencyprobe_port);
+	int i;
+
+	for(i=0;i<LATENCYPROBE_PORT_NUM;i++)
+	{
+		if(latencyprobe_ports[i]<=0)
+		{
+			return 0;
+		}
+		else if((src_port==latencyprobe_ports[i])||(dst_port==latencyprobe_ports[i]))
+		{
+			return 1;
+		}
+	}
+	return 0;
 }
 
 /* Calculate time interval for TCP packets whose IP headers may not be set*/
@@ -21,7 +33,7 @@ static s64 latencyprobe_timeinterval2(struct sk_buff *skb)
 	struct tcphdr *tcph=tcp_hdr(skb);
 	ktime_t now;
 	s64 result=0;
-	
+
 	if(likely(tcph!=NULL))
 	{
 		if(latencyprobe_filter_packet(ntohs(tcph->source),ntohs(tcph->dest)))
@@ -30,14 +42,14 @@ static s64 latencyprobe_timeinterval2(struct sk_buff *skb)
 			if(skb->tstamp.tv64>0)
 			{
 				result=now.tv64-skb->tstamp.tv64;
-				if(likely(result<latencyprobe_max_value))
+				if(likely(result<LLONG_MAX/max_t(int,latencyprobe_tx_sample_thresh,latencyprobe_rx_sample_thresh)))
 					return result;
 				else
 					return 0;
 			}
 		}
 	}
-	
+
 	return 0;
 }
 
@@ -48,10 +60,10 @@ static s64 latencyprobe_timeinterval(struct sk_buff *skb)
 	struct tcphdr *tcph=NULL;
 	s64 result=0;
 	ktime_t now;
-	
+
 	if(unlikely(iph==NULL))
 		return 0;
-	
+
 	/*We only handle tcp packets with source/destination port=5001 */
 	if(likely(iph->protocol==IPPROTO_TCP))
 	{
@@ -63,14 +75,14 @@ static s64 latencyprobe_timeinterval(struct sk_buff *skb)
 			if(skb->tstamp.tv64>0)
 			{
 				result=now.tv64-skb->tstamp.tv64;
-				if(likely(result<latencyprobe_max_value))
+				if(likely(result<LLONG_MAX/max_t(int,latencyprobe_tx_sample_thresh,latencyprobe_rx_sample_thresh)))
 					return result;
 				else
 					return 0;
 			}
 		}
 	}
-	
+
 	return 0;
 }
 
